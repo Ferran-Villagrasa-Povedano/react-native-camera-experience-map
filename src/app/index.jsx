@@ -1,0 +1,26 @@
+import { auth } from "@src/services/firebase";
+import { useRouter } from "expo-router";
+import { useEffect } from "react";
+
+export default function IndexScreen() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkAuthStatus = () => {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        router.replace("/home");
+      } else {
+        router.replace("/login");
+      }
+    };
+
+    const timeoutId = setTimeout(() => {
+      checkAuthStatus();
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [router]);
+
+  return null;
+};
