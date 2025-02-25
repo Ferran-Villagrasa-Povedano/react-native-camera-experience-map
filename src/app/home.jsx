@@ -1,74 +1,59 @@
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
-import { useState, useRef } from 'react';
-import { Button, Text, TouchableOpacity, View } from 'react-native';
-import FlipCameraAndroid from '@assets/FlipCameraAndroid';
-import FlashAuto from '@assets/FlashAuto';
-import FlashOff from '@assets/FlashOff';
-import FlashOn from '@assets/FlashOn';
-
+import { useRouter } from "expo-router";
+import { ImageBackground, Text, TouchableOpacity, View } from "react-native";
 
 export default function App() {
-  const [facing, setFacing] = useState('back'); // back, front
-  const [flash, setFlash] = useState('off'); // off, on, auto
-  const [permission, requestPermission] = useCameraPermissions();
-
-  const cameraRef = useRef();
-
-  if (!permission) {
-    return <View />;
-  }
-
-  if (!permission.granted) {
-    return (
-      <View className="flex-1 justify-center items-center">
-        <Text className="text-center pb-2">We need your permission to show the camera</Text>
-        <Button onPress={requestPermission} title="Grant Permission" />
-      </View>
-    );
-  }
-
-  const toggleCameraFacing = () => {
-    setFacing(current => (current === 'back' ? 'front' : 'back'));
-  }
-
-  const toggleFlashMode = () => {
-    setFlash(current => (current === 'off' ? 'on' : (current === 'on' ? 'auto' : 'off')));
-  }
-
-  const takePhoto = () => {
-    cameraRef.current.takePictureAsync().then(data => {
-      console.log(data.uri);
-    });
-  }
-
+  const router = useRouter();
   return (
-    <View className="flex-1">
-      <CameraView ref={cameraRef} className="flex-1" facing={facing} flash={flash}>
-        <View className="w-full h-full bg-transparent flex-row justify-between p-4">
-
-          <View className="absolute top-0 w-full flex-row justify-between p-4">
-            <TouchableOpacity className="p-4 bg-black/50 rounded-full" onPress={toggleFlashMode}>
-              {flash === 'off' ? (
-                <FlashOff className="w-8 h-8 text-white" color="#fff" />
-              ) : (
-                flash === 'on' ? (
-                  <FlashOn className="w-8 h-8 text-white" color="#fff" />
-                ) : (
-                  <FlashAuto className="w-8 h-8 text-white" color="#fff" />
-                ))}
-            </TouchableOpacity>
-
-            <TouchableOpacity className="p-4 bg-black/50 rounded-full" onPress={toggleCameraFacing}>
-              <FlipCameraAndroid className="w-8 h-8 text-white" color="#fff" />
-            </TouchableOpacity>
-          </View>
-
-
-          <View className="absolute bottom-8 w-full flex-row justify-center px-8 items-center">
-            <TouchableOpacity className="w-16 h-16 bg-white rounded-full border-4 border-gray-300" onPress={takePhoto} />
-          </View>
-        </View>
-      </CameraView>
+    <View className="w-full h-1/2 flex-col p-2">
+      <View className="flex-row w-full h-1/2 space-x-1">
+        <TouchableOpacity
+          onPress={() => router.push("/gallery")}
+          className="flex-row w-[50%] space-x-1"
+        >
+          <ImageBackground
+            className="flex-1 w-full justify-end"
+            source={{
+              uri: "https://cdn.pixabay.com/photo/2022/07/30/07/50/gallery-7353267_1280.png",
+            }}
+          >
+            <View className="flex-1 p-2 justify-end bg-gray-900/80 border-2 border-white ">
+              <Text className="text-left text-white font-bold">Galeria</Text>
+            </View>
+          </ImageBackground>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push("/camera")}
+          className="flex-row w-[50%] space-x-1"
+        >
+          <ImageBackground
+            className="flex-1 justify-end"
+            source={{
+              uri: "https://static.vecteezy.com/system/resources/previews/024/758/773/original/camera-icon-clipart-transparent-background-free-png.png",
+            }}
+          >
+            <View className="flex-1 p-2 justify-end bg-gray-900/80 border-2 border-white ">
+              <Text className="text-left text-white font-bold">Camara</Text>
+            </View>
+          </ImageBackground>
+        </TouchableOpacity>
+      </View>
+      <View className="flex-row w-full h-1/2 space-x-1">
+        <TouchableOpacity
+          onPress={() => router.push("/map")}
+          className="flex-row w-full space-x-1"
+        >
+          <ImageBackground
+            className="flex-1 w-full justify-end "
+            source={{
+              uri: "https://img.freepik.com/fotos-premium/mapa-pequena-isla-ficticia_14117-413923.jpg",
+            }}
+          >
+            <View className="flex-1 p-5 w-full justify-end bg-gray-900/80 border-2 border-white">
+              <Text className="text-left text-white font-bold ">Mapa</Text>
+            </View>
+          </ImageBackground>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
