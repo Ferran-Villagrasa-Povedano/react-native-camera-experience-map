@@ -7,7 +7,7 @@ export default function App() {
     <View className="w-full h-1/2 flex-col p-2">
       <View className="flex-row w-full h-1/2 space-x-1">
         <TouchableOpacity
-          onPress={() => router.push("/gallery")}
+          onPress={() => router.replace("/gallery")}
           className="flex-row w-[50%] space-x-1"
         >
           <ImageBackground

@@ -1,10 +1,14 @@
 import * as Location from "expo-location";
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { useState, useEffect } from "react";
+import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { db, auth } from "@src/services/firebase";
+import { StyleSheet, View, Image } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 
 export default function App() {
   const [location, setLocation] = React.useState(null);
+  const [images, setImages] = useState([]);
 
   React.useEffect(() => {
     (async () => {
@@ -14,6 +18,25 @@ export default function App() {
       setLocation(location);
     })();
   }, []);
+
+  useEffect(() => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return; 
+  
+      const userMediaRef = collection(db, `users/${currentUser.uid}/media`);
+  
+      const unsubscribe = onSnapshot(userMediaRef, (querySnapshot) => {
+        const images = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setImages(images);
+
+        console.log(images);
+      });
+  
+      return () => unsubscribe();
+    }, []);
 
   return (
     <View style={styles.container}>
@@ -38,6 +61,20 @@ export default function App() {
           }}
         >
         </Marker>
+
+        {images.map((image) => (
+          <Marker
+          key={image.id}
+          coordinate={{ latitude: image.latitude, longitude: image.longitude }}
+        >
+          <View style={{ width: 30, height: 30}}>
+            <Image
+              source={{ uri: `data:image/jpeg;base64,${image.base64}` }}
+              style={{ width: 30, height: 30 }}
+            />
+          </View>
+        </Marker>
+        ))}
       </MapView>
     </View>
   );
