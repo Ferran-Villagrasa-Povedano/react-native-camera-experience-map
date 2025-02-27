@@ -1,6 +1,7 @@
 import { auth } from "@src/services/firebase";
-import { useRouter } from "expo-router";
+import { useRouter,  } from "expo-router";
 import { useEffect } from "react";
+import { ActivityIndicator } from "react-native";
 
 export default function IndexScreen() {
   const router = useRouter();
@@ -22,5 +23,9 @@ export default function IndexScreen() {
     return () => clearTimeout(timeoutId);
   }, [router]);
 
-  return null;
+  return (
+    <View className="flex-1 justify-center items-center">
+      <ActivityIndicator />
+    </View>
+  );
 };

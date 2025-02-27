@@ -31,12 +31,12 @@ export default function App() {
         }
       >
         <Marker
+          className="border-2 border-white rounded-full w-10 h-10 bg-red"
           coordinate={{ latitude: 41.610241, longitude: 2.194169 }}
           image={{
             uri: "https://fastly.picsum.photos/id/16/200/300.jpg?hmac=k64O1qCMBhaU0Ep_qML5_xDxqLVR1MhNm8VMqgdAsxA",
           }}
         >
-          {/* <Text>Holaaaaa</Text> */}
         </Marker>
       </MapView>
     </View>

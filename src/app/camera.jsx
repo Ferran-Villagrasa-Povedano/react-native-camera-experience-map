@@ -7,6 +7,7 @@ import * as Location from "expo-location";
 import * as MediaLibrary from "expo-media-library";
 import { useEffect, useRef, useState } from "react";
 import { Button, Text, TouchableOpacity, View } from "react-native";
+import { db } from "@src/services/firebase";
 
 export default function CameraScreen() {
   const [permissionsGranted, setPermissionsGranted] = useState(false);
@@ -16,6 +17,8 @@ export default function CameraScreen() {
   const cameraRef = useRef();
   const [facing, setFacing] = useState("back");
   const [flash, setFlash] = useState("off");
+
+  const userMediaRef = collection(db, `users/${auth.currentUser.uid}/media`);
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -103,9 +106,16 @@ export default function CameraScreen() {
       const longitude = location.coords.longitude;
 
       const fileName = `IMG_${timestamp}_LAT${latitude}_LON${longitude}.jpg`;
+      db
 
       const asset = await MediaLibrary.createAssetAsync(photo.uri);
       console.log(`Image saved as ${fileName}`, asset);
+
+      const userMediaRef = collection(db, `users/${auth.currentUser}/media`);
+      await addDoc(userMediaRef, {
+        fileName: fileName,
+        base64: photo.base64,
+      });
     } catch (error) {
       console.error("Error taking photo:", error);
     }
