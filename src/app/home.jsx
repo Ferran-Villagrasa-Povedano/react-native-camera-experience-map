@@ -16,7 +16,7 @@ export default function App() {
               uri: "https://cdn.pixabay.com/photo/2022/07/30/07/50/gallery-7353267_1280.png",
             }}
           >
-            <View className="flex-1 p-2 justify-end bg-gray-900/80 border-2 border-white ">
+            <View className="flex-1 p-2 justify-end bg-gray-900/60 border-2 border-white ">
               <Text className="text-left text-white font-bold">Galeria</Text>
             </View>
           </ImageBackground>
@@ -31,7 +31,7 @@ export default function App() {
               uri: "https://static.vecteezy.com/system/resources/previews/024/758/773/original/camera-icon-clipart-transparent-background-free-png.png",
             }}
           >
-            <View className="flex-1 p-2 justify-end bg-gray-900/80 border-2 border-white ">
+            <View className="flex-1 p-2 justify-end bg-gray-900/60 border-2 border-white ">
               <Text className="text-left text-white font-bold">Camara</Text>
             </View>
           </ImageBackground>
@@ -48,7 +48,7 @@ export default function App() {
               uri: "https://img.freepik.com/fotos-premium/mapa-pequena-isla-ficticia_14117-413923.jpg",
             }}
           >
-            <View className="flex-1 p-5 w-full justify-end bg-gray-900/80 border-2 border-white">
+            <View className="flex-1 p-5 w-full justify-end bg-gray-900/60 border-2 border-white">
               <Text className="text-left text-white font-bold ">Mapa</Text>
             </View>
           </ImageBackground>

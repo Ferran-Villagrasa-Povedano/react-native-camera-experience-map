@@ -5,9 +5,14 @@ import FlipCameraAndroid from "@assets/FlipCameraAndroid";
 import { Camera, CameraView } from "expo-camera";
 import * as Location from "expo-location";
 import * as MediaLibrary from "expo-media-library";
+import * as ImageManipulator from "expo-image-manipulator";
 import { useEffect, useRef, useState } from "react";
 import { Button, Text, TouchableOpacity, View } from "react-native";
-import { db } from "@src/services/firebase";
+import { db, auth } from "@src/services/firebase";
+import {
+  addDoc,
+  collection,
+} from "firebase/firestore";
 
 export default function CameraScreen() {
   const [permissionsGranted, setPermissionsGranted] = useState(false);
@@ -58,6 +63,8 @@ export default function CameraScreen() {
     setCheckingPermissions(false);
   };
 
+  //test@test.com
+
   if (!permissionsGranted || !gpsEnabled) {
     return (
       <View className="flex-1 justify-center items-center">
@@ -94,31 +101,56 @@ export default function CameraScreen() {
     setTakingPicture(true);
 
     try {
-      const photo = await cameraRef.current.takePictureAsync();
+      const photo = await cameraRef.current.takePictureAsync({ base64: true });
+    
       const timestamp = new Date().toISOString().replace(/[:.-]/g, "_");
-
+    
       const location = await Location.getCurrentPositionAsync({
         enableHighAccuracy: true,
         timeout: 1000,
       });
-
+    
       const latitude = location.coords.latitude;
       const longitude = location.coords.longitude;
-
+    
       const fileName = `IMG_${timestamp}_LAT${latitude}_LON${longitude}.jpg`;
-      db
-
-      const asset = await MediaLibrary.createAssetAsync(photo.uri);
+    
+      let quality = 0.8;
+      let compressedPhoto = await ImageManipulator.manipulateAsync(
+        photo.uri,
+        [],
+        { compress: quality, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      );
+    
+      while (compressedPhoto.base64.length > 1000000) {
+        quality -= 0.1;
+        compressedPhoto = await ImageManipulator.manipulateAsync(
+          photo.uri,
+          [],
+          { compress: quality, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+        );
+        if (quality <= 0.1) break;
+      }
+    
+      const asset = await MediaLibrary.createAssetAsync(compressedPhoto.uri);
       console.log(`Image saved as ${fileName}`, asset);
-
-      const userMediaRef = collection(db, `users/${auth.currentUser}/media`);
-      await addDoc(userMediaRef, {
+    
+      const userMediaRef = collection(db, `users/${auth.currentUser.uid}/media`);
+    
+      const photoData = {
         fileName: fileName,
-        base64: photo.base64,
-      });
+        base64: compressedPhoto.base64,
+        latitude,
+        longitude,
+        timestamp
+      };
+    
+      await addDoc(userMediaRef, photoData);
     } catch (error) {
       console.error("Error taking photo:", error);
-    }
+    } finally {
+      setTakingPicture(false);
+    }    
   };
 
   return (

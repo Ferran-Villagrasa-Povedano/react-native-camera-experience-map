@@ -1,3 +1,5 @@
 export default function GalleryScreen() {
-  return <></>;
+  return <>
+  
+  </>;
 }
