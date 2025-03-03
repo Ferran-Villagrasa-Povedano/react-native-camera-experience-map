@@ -37,6 +37,7 @@ export default function RegisterScreen() {
       );
       updateProfile(userCredential.user, {
         displayName,
+        photoURL: null,
       });
       router.replace("/home");
     } catch (error) {

@@ -32,7 +32,6 @@ export default function Layout() {
         screenOptions={{
           headerStyle: { backgroundColor: "#3f3f3f" },
           headerTintColor: "white",
-          headerTitle: "Todo List",
           headerRight: () =>
             user && (
               <TouchableOpacity

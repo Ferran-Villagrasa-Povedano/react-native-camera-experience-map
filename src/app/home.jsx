@@ -1,59 +1,156 @@
-import { useRouter } from "expo-router";
-import { ImageBackground, Text, TouchableOpacity, View } from "react-native";
+import AlbumCard from "@components/AlbumCard";
+import { Stack } from "expo-router";
+import React, { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  RefreshControl,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
-export default function App() {
-  const router = useRouter();
+import Add from "@assets/Add";
+import EmailInput from "@components/EmailInput";
+
+const INITIAL_ALBUMS = Array.from({ length: 10 }, (_, i) => ({
+  id: (i + 1).toString(),
+  name: `Album ${i + 1}`,
+  cover: `https://picsum.photos/200?random=${i + 1}`,
+}));
+
+export default function AlbumsScreen() {
+  const [albums, setAlbums] = useState(INITIAL_ALBUMS);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newAlbumName, setNewAlbumName] = useState("");
+
+  const loadMoreAlbums = useCallback(() => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+
+    setTimeout(() => {
+      const newAlbums = Array.from({ length: 10 }, (_, i) => ({
+        id: (albums.length + i + 1).toString(),
+        name: `Album ${albums.length + i + 1}`,
+        cover: `https://picsum.photos/200?random=${albums.length + i + 1}`,
+      }));
+      setAlbums((prev) => [...prev, ...newAlbums]);
+      setLoadingMore(false);
+    }, 1000);
+  }, [loadingMore, albums]);
+
+  const refreshAlbums = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setAlbums(INITIAL_ALBUMS);
+      setRefreshing(false);
+    }, 1000);
+  }, []);
+
+  const [newAlbumEmails, setNewAlbumEmails] = useState([]);
+
+  const handleCreateAlbum = () => {
+    if (newAlbumName.trim() === "") return;
+
+    const newAlbum = {
+      id: (albums.length + 1).toString(),
+      name: newAlbumName,
+      cover: `https://picsum.photos/200?random=${albums.length + 1}`,
+      sharedWith: newAlbumEmails,
+    };
+
+    setAlbums((prev) => [newAlbum, ...prev]);
+    setNewAlbumName("");
+    setNewAlbumEmails([]);
+    setModalVisible(false);
+  };
+
   return (
-    <View className="w-full h-1/2 flex-col p-2">
-      <View className="flex-row w-full h-1/2 space-x-1">
+    <>
+      <Stack.Screen options={{ title: "Albums" }} />
+      <View className="flex-1 bg-gray-100 p-4">
+        {/* Create New Album Button */}
         <TouchableOpacity
-          onPress={() => router.replace("/gallery")}
-          className="flex-row w-[50%] space-x-1"
+          onPress={() => setModalVisible(true)}
+          className="bg-gray-500 py-3 rounded-xl mb-4"
         >
-          <ImageBackground
-            className="flex-1 w-full justify-end"
-            source={{
-              uri: "https://cdn.pixabay.com/photo/2022/07/30/07/50/gallery-7353267_1280.png",
-            }}
-          >
-            <View className="flex-1 p-2 justify-end bg-gray-900/60 border-2 border-white ">
-              <Text className="text-left text-white font-bold">Galeria</Text>
-            </View>
-          </ImageBackground>
+          <View className="flex-row items-center justify-center">
+            <Add className="w-8 h-8 text-white" color="#fff" />
+            <Text className="text-center text-white text-lg ml-2">
+              Create New Album
+            </Text>
+          </View>
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => router.push("/camera")}
-          className="flex-row w-[50%] space-x-1"
+
+        {/* Albums List */}
+        <FlatList
+          data={albums}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={refreshAlbums} />
+          }
+          renderItem={({ item }) => <AlbumCard album={item} />}
+          onEndReached={loadMoreAlbums}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator size="large" className="my-4" />
+            ) : null
+          }
+        />
+
+        {/* Modal for Creating New Album */}
+        <Modal
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+          animationType="fade"
         >
-          <ImageBackground
-            className="flex-1 justify-end"
-            source={{
-              uri: "https://static.vecteezy.com/system/resources/previews/024/758/773/original/camera-icon-clipart-transparent-background-free-png.png",
-            }}
-          >
-            <View className="flex-1 p-2 justify-end bg-gray-900/60 border-2 border-white ">
-              <Text className="text-left text-white font-bold">Camara</Text>
+          <View className="flex-1 justify-center items-center p-4">
+            <View className="w-full p-4 bg-white rounded-xl">
+              <Text className="text-xl font-bold mb-4">New Album</Text>
+
+              {/* Album Name Input */}
+              <TextInput
+                value={newAlbumName}
+                onChangeText={setNewAlbumName}
+                placeholder="Enter album name"
+                className="border border-gray-300 rounded-md p-3 mb-4"
+              />
+
+              {/* User Emails Input */}
+              <EmailInput
+                emails={newAlbumEmails}
+                onEmailsChange={setNewAlbumEmails}
+              />
+
+              {/* Buttons */}
+              <View className="flex-row items-center justify-center gap-4">
+                <TouchableOpacity
+                  className="bg-gray-300 py-3 rounded-md mt-4 flex-1"
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Text className="text-center text-gray-700 text-lg">
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="bg-blue-500 py-3 rounded-md mt-4 flex-1"
+                  onPress={handleCreateAlbum}
+                >
+                  <Text className="text-center text-white text-lg">
+                    Create Album
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </ImageBackground>
-        </TouchableOpacity>
+          </View>
+        </Modal>
       </View>
-      <View className="flex-row w-full h-1/2 space-x-1">
-        <TouchableOpacity
-          onPress={() => router.push("/map")}
-          className="flex-row w-full space-x-1"
-        >
-          <ImageBackground
-            className="flex-1 w-full justify-end "
-            source={{
-              uri: "https://img.freepik.com/fotos-premium/mapa-pequena-isla-ficticia_14117-413923.jpg",
-            }}
-          >
-            <View className="flex-1 p-5 w-full justify-end bg-gray-900/60 border-2 border-white">
-              <Text className="text-left text-white font-bold ">Mapa</Text>
-            </View>
-          </ImageBackground>
-        </TouchableOpacity>
-      </View>
-    </View>
+    </>
   );
 }

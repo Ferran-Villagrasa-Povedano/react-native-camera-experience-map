@@ -2,17 +2,20 @@ import FlashAuto from "@assets/FlashAuto";
 import FlashOff from "@assets/FlashOff";
 import FlashOn from "@assets/FlashOn";
 import FlipCameraAndroid from "@assets/FlipCameraAndroid";
+import { auth, db } from "@src/services/firebase";
 import { Camera, CameraView } from "expo-camera";
+import * as ImageManipulator from "expo-image-manipulator";
 import * as Location from "expo-location";
 import * as MediaLibrary from "expo-media-library";
-import * as ImageManipulator from "expo-image-manipulator";
+import { addDoc, collection, doc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
-import { Button, Text, TouchableOpacity, View } from "react-native";
-import { db, auth } from "@src/services/firebase";
 import {
-  addDoc,
-  collection,
-} from "firebase/firestore";
+  ActivityIndicator,
+  Button,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function CameraScreen() {
   const [permissionsGranted, setPermissionsGranted] = useState(false);
@@ -95,62 +98,93 @@ export default function CameraScreen() {
     );
   };
 
+  const compressImage = async (photo, targetSize, minQuality = 0.1) => {
+    let low = minQuality;
+    let high = 1;
+    let quality = high;
+    let compressedPhoto = photo;
+
+    const targetBase64Size = Math.floor((targetSize * 4) / 3);
+
+    if (photo.base64 && photo.base64.length <= targetBase64Size) {
+      return { compressedPhoto: photo, quality };
+    }
+
+    while (high - low > 0.01) {
+      quality = (low + high) / 2;
+      const result = await ImageManipulator.manipulateAsync(photo.uri, [], {
+        compress: quality,
+        format: ImageManipulator.SaveFormat.JPEG,
+        base64: true,
+      });
+
+      if (result.base64.length > targetBase64Size) {
+        high = quality;
+      } else {
+        low = quality;
+        compressedPhoto = result;
+      }
+    }
+
+    return { compressedPhoto, quality };
+  };
+
   const takePhoto = async () => {
-    if (!cameraRef.current) return;
+    if (!cameraRef.current) {
+      return;
+    }
 
     setTakingPicture(true);
 
     try {
       const photo = await cameraRef.current.takePictureAsync({ base64: true });
-    
+
       const timestamp = new Date().toISOString().replace(/[:.-]/g, "_");
-    
+      console.log(
+        "Location enabled:",
+        await Location.hasServicesEnabledAsync()
+      );
       const location = await Location.getCurrentPositionAsync({
         enableHighAccuracy: true,
-        timeout: 1000,
       });
-    
-      const latitude = location.coords.latitude;
-      const longitude = location.coords.longitude;
-    
+
+      const latitude = location?.coords?.latitude || 0;
+      const longitude = location?.coords?.longitude || 0;
+
       const fileName = `IMG_${timestamp}_LAT${latitude}_LON${longitude}.jpg`;
-    
-      let quality = 0.8;
-      let compressedPhoto = await ImageManipulator.manipulateAsync(
-        photo.uri,
-        [],
-        { compress: quality, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+
+      const targetSize = 800000;
+      const { compressedPhoto, quality } = await compressImage(
+        photo,
+        targetSize
       );
-    
-      while (compressedPhoto.base64.length > 1000000) {
-        quality -= 0.1;
-        compressedPhoto = await ImageManipulator.manipulateAsync(
-          photo.uri,
-          [],
-          { compress: quality, format: ImageManipulator.SaveFormat.JPEG, base64: true }
-        );
-        if (quality <= 0.1) break;
-      }
-    
-      const asset = await MediaLibrary.createAssetAsync(compressedPhoto.uri);
-      console.log(`Image saved as ${fileName}`, asset);
-    
-      const userMediaRef = collection(db, `users/${auth.currentUser.uid}/media`);
-    
+      console.log(`TargetSize: ${targetSize}`);
+      console.log(`Quality: ${quality.toFixed(2)}`);
+      console.log(`Original photo size: ${photo.base64.length}`);
+      console.log(`Compressed photo size: ${compressedPhoto.base64.length}`);
+
+      // const asset = await MediaLibrary.createAssetAsync(compressedPhoto.uri);
+      albumId = "Ss5t0ZRHcryxNeA7OAtz";
+      console.log("User id:", auth.currentUser.uid);
+      const userMediaRef = collection(db, `albums/${albumId}/media`);
+
       const photoData = {
+        author: doc(db, `users/${auth.currentUser.uid}`),
+        type: "image/jpeg",
         fileName: fileName,
         base64: compressedPhoto.base64,
         latitude,
         longitude,
-        timestamp
+        timestamp,
       };
-    
+
       await addDoc(userMediaRef, photoData);
+      console.log("Photo added to Firestore");
     } catch (error) {
       console.error("Error taking photo:", error);
     } finally {
       setTakingPicture(false);
-    }    
+    }
   };
 
   return (
@@ -186,11 +220,19 @@ export default function CameraScreen() {
           </View>
 
           {/* Bottom Bar */}
-          <View className="absolute bottom-8 w-full flex-row justify-center px-8 items-center">
+          <View className="absolute bottom-8 w-full flex-row px-8 justify-center items-center">
             <TouchableOpacity
-              className="w-16 h-16 bg-white rounded-full border-4 border-gray-300"
+              className="w-16 h-16 bg-white rounded-full border-4 border-gray-300 justify-center items-center"
               onPress={takePhoto}
-            />
+            >
+              {takingPicture && (
+                <ActivityIndicator
+                  className="z-10"
+                  size="large"
+                  color="#d1d5db"
+                />
+              )}
+            </TouchableOpacity>
           </View>
         </View>
       </CameraView>
