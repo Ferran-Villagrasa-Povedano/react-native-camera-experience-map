@@ -11,16 +11,19 @@ import {
   onSnapshot,
   orderBy,
   query,
+  startAfter,
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   RefreshControl,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import ImageViewer from "react-native-image-zoom-viewer";
 
 export default function AlbumScreen() {
   const { albumId } = useLocalSearchParams();
@@ -30,10 +33,11 @@ export default function AlbumScreen() {
   const [lastVisible, setLastVisible] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
   const MEDIA_PER_PAGE = 10;
-
   const router = useRouter();
-
   const albumRef = doc(db, "albums", albumId);
 
   useEffect(() => {
@@ -86,7 +90,6 @@ export default function AlbumScreen() {
   const refreshMedia = async () => {
     setRefreshing(true);
     await fetchMedia(true);
-    console.log(media);
     setRefreshing(false);
   };
 
@@ -99,14 +102,17 @@ export default function AlbumScreen() {
     });
 
     if (!result.cancelled) {
-      // Handle the selected image (result.uri)
       console.log("Selected image from gallery:", result.uri);
     }
   };
 
-  // Navigate to camera screen
   const handleTakePhoto = () => {
     router.push({ pathname: "/camera", params: { albumId } });
+  };
+
+  const openImageViewer = (index) => {
+    setCurrentImageIndex(index);
+    setIsImageViewerVisible(true);
   };
 
   if (!album) {
@@ -116,6 +122,8 @@ export default function AlbumScreen() {
       </View>
     );
   }
+
+  const imageUrls = media.map((item) => ({ url: item.base64 }));
 
   return (
     <>
@@ -149,7 +157,11 @@ export default function AlbumScreen() {
         <FlatList
           data={media}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <MediaCard media={item} />}
+          renderItem={({ item, index }) => (
+            <TouchableOpacity onPress={() => openImageViewer(index)}>
+              <MediaCard media={item} />
+            </TouchableOpacity>
+          )}
           numColumns={3}
           onEndReached={() => {
             if (!loadingMore && lastVisible !== null) {
@@ -175,6 +187,21 @@ export default function AlbumScreen() {
           }
         />
       </View>
+
+      <Modal
+        visible={isImageViewerVisible}
+        transparent={true}
+        onRequestClose={() => setIsImageViewerVisible(false)}
+      >
+        <ImageViewer
+          imageUrls={imageUrls}
+          index={currentImageIndex}
+          renderIndicator={() => null}
+          onSwipeDown={() => setIsImageViewerVisible(false)}
+          enableSwipeDown={true}
+          backgroundColor="black"
+        />
+      </Modal>
     </>
   );
 }
