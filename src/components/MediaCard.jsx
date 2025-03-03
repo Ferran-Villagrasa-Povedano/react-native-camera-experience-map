@@ -4,10 +4,11 @@ import { Image, View } from "react-native";
 export default function MediaCard({ media }) {
   const router = useRouter();
   return (
-    <View className="flex-1 items-center m-2">
+    <View className="flex-1 m-1 overflow-hidden items-center justify-center">
       <Image
         source={{ uri: media.base64 }}
-        style={{ width: 100, height: 100 }}
+        className="w-full aspect-square"
+        resizeMode="cover"
       />
     </View>
   );

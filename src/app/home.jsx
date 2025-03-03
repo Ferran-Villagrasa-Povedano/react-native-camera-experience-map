@@ -197,7 +197,7 @@ export default function AlbumsScreen() {
   return (
     <>
       <Stack.Screen options={{ title: "Albums" }} />
-      <View className="flex-1 bg-gray-100 p-4">
+      <View className="flex-1 p-4">
         <TouchableOpacity
           className="bg-gray-500 py-3 rounded-xl mb-4"
           onPress={() => setModalVisible(true)}

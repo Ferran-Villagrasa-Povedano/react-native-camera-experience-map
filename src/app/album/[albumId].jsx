@@ -147,7 +147,7 @@ export default function AlbumScreen() {
   return (
     <>
       <Stack.Screen options={{ title: album?.name }} />
-      <View className="flex-1">
+      <View className="flex-1 p-4">
         <View className="flex-row justify-between p-4">
           <TouchableOpacity
             onPress={handleImportFromGallery}
@@ -177,7 +177,13 @@ export default function AlbumScreen() {
           data={media}
           keyExtractor={(item) => item.id}
           renderItem={({ item, index }) => (
-            <TouchableOpacity onPress={() => openImageViewer(index)}>
+            <TouchableOpacity
+              onPress={() => openImageViewer(index)}
+              style={{
+                flexBasis: "33%",
+                maxWidth: "33%",
+              }}
+            >
               <MediaCard media={item} />
             </TouchableOpacity>
           )}

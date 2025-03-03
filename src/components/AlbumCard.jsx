@@ -9,7 +9,7 @@ export default function AlbumsCard({ album }) {
         flexBasis: "48%",
         maxWidth: "48%",
       }}
-      className="flex-1 m-2 bg-white rounded-3xl shadow-md overflow-hidden"
+      className="flex-1 m-2 bg-white rounded-3xl shadow-md overflow-hidden items-center justify-center"
       onPress={() => router.push(`/album/${album.id}`)}
     >
       <Image
