@@ -6,7 +6,9 @@ import { ImagePicker } from "expo-image-picker";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import {
   collection,
+  deleteDoc,
   doc,
+  getDocs,
   limit,
   onSnapshot,
   orderBy,
@@ -24,6 +26,8 @@ import {
   View,
 } from "react-native";
 import ImageViewer from "react-native-image-zoom-viewer";
+
+import Delete from "@assets/Delete";
 
 export default function AlbumScreen() {
   const { albumId } = useLocalSearchParams();
@@ -67,24 +71,30 @@ export default function AlbumScreen() {
       q = query(q, startAfter(lastVisible));
     }
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    try {
+      const snapshot = await getDocs(q);
       const newMedia = [];
+
       snapshot.forEach((doc) => {
         newMedia.push({ id: doc.id, albumId, ...doc.data() });
       });
 
-      setMedia((prevMedia) => [...prevMedia, ...newMedia]);
+      if (isRefresh) {
+        setMedia(newMedia);
+      } else {
+        setMedia((prevMedia) => [...prevMedia, ...newMedia]);
+      }
 
       setLastVisible(
         snapshot.docs.length < MEDIA_PER_PAGE
           ? null
           : snapshot.docs[snapshot.docs.length - 1]
       );
-
+    } catch (error) {
+      console.error("Error fetching media:", error);
+    } finally {
       setLoadingMore(false);
-    });
-
-    return () => unsubscribe();
+    }
   };
 
   const refreshMedia = async () => {
@@ -103,6 +113,15 @@ export default function AlbumScreen() {
 
     if (!result.cancelled) {
       console.log("Selected image from gallery:", result.uri);
+    }
+  };
+
+  const deleteMedia = async (mediaId) => {
+    try {
+      await deleteDoc(doc(db, "albums", albumId, "media", mediaId));
+      await refreshMedia();
+    } catch (error) {
+      console.error("Error deleting media:", error);
     }
   };
 
@@ -192,6 +211,7 @@ export default function AlbumScreen() {
         visible={isImageViewerVisible}
         transparent={true}
         onRequestClose={() => setIsImageViewerVisible(false)}
+        animationType="fade"
       >
         <ImageViewer
           imageUrls={imageUrls}
@@ -200,6 +220,20 @@ export default function AlbumScreen() {
           onSwipeDown={() => setIsImageViewerVisible(false)}
           enableSwipeDown={true}
           backgroundColor="black"
+          renderHeader={() => (
+            <View className="flex-row justify-end items-center p-4 bg-black bg-opacity-50">
+              <TouchableOpacity
+                onPress={() => {
+                  const mediaId = media[currentImageIndex].id;
+                  deleteMedia(mediaId);
+                  setIsImageViewerVisible(false);
+                }}
+                className="bg-red-600 py-2 px-2 rounded-full"
+              >
+                <Delete className="w-8 h-8 text-white" color="#fff" />
+              </TouchableOpacity>
+            </View>
+          )}
         />
       </Modal>
     </>

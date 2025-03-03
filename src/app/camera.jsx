@@ -154,7 +154,7 @@ export default function CameraScreen() {
 
       const fileName = `IMG_${timestamp}_LAT${latitude}_LON${longitude}.jpg`;
 
-      const targetSize = 800000;
+      const targetSize = 700_000;
       const { compressedPhoto, quality } = await compressImage(
         photo,
         targetSize

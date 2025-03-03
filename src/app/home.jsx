@@ -1,5 +1,5 @@
 import AlbumCard from "@components/AlbumCard";
-import { auth, db } from "@services/firebase";
+import { auth, db } from "@src/services/firebase";
 import { Stack } from "expo-router";
 import {
   addDoc,
