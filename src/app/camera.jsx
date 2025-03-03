@@ -2,11 +2,12 @@ import FlashAuto from "@assets/FlashAuto";
 import FlashOff from "@assets/FlashOff";
 import FlashOn from "@assets/FlashOn";
 import FlipCameraAndroid from "@assets/FlipCameraAndroid";
-import { auth, db } from "@src/services/firebase";
+import { auth, db } from "@services/firebase";
 import { Camera, CameraView } from "expo-camera";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as Location from "expo-location";
 import * as MediaLibrary from "expo-media-library";
+import { useLocalSearchParams } from "expo-router";
 import { addDoc, collection, doc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -26,7 +27,7 @@ export default function CameraScreen() {
   const [facing, setFacing] = useState("back");
   const [flash, setFlash] = useState("off");
 
-  const userMediaRef = collection(db, `users/${auth.currentUser.uid}/media`);
+  const { albumId } = useLocalSearchParams();
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -164,7 +165,6 @@ export default function CameraScreen() {
       console.log(`Compressed photo size: ${compressedPhoto.base64.length}`);
 
       // const asset = await MediaLibrary.createAssetAsync(compressedPhoto.uri);
-      albumId = "Ss5t0ZRHcryxNeA7OAtz";
       console.log("User id:", auth.currentUser.uid);
       const userMediaRef = collection(db, `albums/${albumId}/media`);
 
@@ -172,7 +172,7 @@ export default function CameraScreen() {
         author: doc(db, `users/${auth.currentUser.uid}`),
         type: "image/jpeg",
         fileName: fileName,
-        base64: compressedPhoto.base64,
+        base64: `data:image/jpeg;base64,${compressedPhoto.base64}`,
         latitude,
         longitude,
         timestamp,

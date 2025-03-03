@@ -5,6 +5,10 @@ export default function AlbumsCard({ album }) {
   const router = useRouter();
   return (
     <TouchableOpacity
+      style={{
+        flexBasis: "48%",
+        maxWidth: "48%",
+      }}
       className="flex-1 m-2 bg-white rounded-3xl shadow-md overflow-hidden"
       onPress={() => router.push(`/album/${album.id}`)}
     >

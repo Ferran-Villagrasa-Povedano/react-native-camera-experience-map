@@ -1,6 +1,18 @@
 import AlbumCard from "@components/AlbumCard";
+import { auth, db } from "@services/firebase";
 import { Stack } from "expo-router";
-import React, { useCallback, useState } from "react";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  startAfter,
+  where,
+} from "firebase/firestore";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -15,78 +27,188 @@ import {
 import Add from "@assets/Add";
 import EmailInput from "@components/EmailInput";
 
-const INITIAL_ALBUMS = Array.from({ length: 10 }, (_, i) => ({
-  id: (i + 1).toString(),
-  name: `Album ${i + 1}`,
-  cover: `https://picsum.photos/200?random=${i + 1}`,
-}));
-
 export default function AlbumsScreen() {
-  const [albums, setAlbums] = useState(INITIAL_ALBUMS);
+  const [albums, setAlbums] = useState([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [lastVisible, setLastVisible] = useState(null);
+  const [creatingAlbum, setCreatingAlbum] = useState(false);
   const [newAlbumName, setNewAlbumName] = useState("");
+  const [newAlbumEmails, setNewAlbumEmails] = useState([]);
+  const [newAlbumError, setNewAlbumError] = useState(null);
+  const ALBUMS_PER_PAGE = 10;
 
-  const loadMoreAlbums = useCallback(() => {
-    if (loadingMore) return;
-    setLoadingMore(true);
-
-    setTimeout(() => {
-      const newAlbums = Array.from({ length: 10 }, (_, i) => ({
-        id: (albums.length + i + 1).toString(),
-        name: `Album ${albums.length + i + 1}`,
-        cover: `https://picsum.photos/200?random=${albums.length + i + 1}`,
-      }));
-      setAlbums((prev) => [...prev, ...newAlbums]);
-      setLoadingMore(false);
-    }, 1000);
-  }, [loadingMore, albums]);
-
-  const refreshAlbums = useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => {
-      setAlbums(INITIAL_ALBUMS);
-      setRefreshing(false);
-    }, 1000);
+  useEffect(() => {
+    fetchAlbums(true);
   }, []);
 
-  const [newAlbumEmails, setNewAlbumEmails] = useState([]);
+  const fetchAlbums = async (isRefresh = false) => {
+    if (loadingMore || (lastVisible === null && !isRefresh)) return;
 
-  const handleCreateAlbum = () => {
-    if (newAlbumName.trim() === "") return;
+    setLoadingMore(true);
 
-    const newAlbum = {
-      id: (albums.length + 1).toString(),
-      name: newAlbumName,
-      cover: `https://picsum.photos/200?random=${albums.length + 1}`,
-      sharedWith: newAlbumEmails,
-    };
+    try {
+      let q = collection(db, "albums");
 
-    setAlbums((prev) => [newAlbum, ...prev]);
+      q = query(
+        q,
+        orderBy("updatedAt", "desc"),
+        limit(ALBUMS_PER_PAGE),
+        where("authorId", "==", doc(db, "users", auth.currentUser.uid))
+      );
+
+      if (!isRefresh && lastVisible) {
+        q = query(q, startAfter(lastVisible));
+      }
+
+      const snapshot = await getDocs(q);
+      const newAlbums = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      const sharedAlbumsQuery = query(
+        collection(db, "albums"),
+        where(
+          "sharedWith",
+          "array-contains",
+          doc(db, "users", auth.currentUser.uid)
+        ),
+        orderBy("updatedAt", "desc"),
+        limit(ALBUMS_PER_PAGE)
+      );
+
+      const sharedSnapshot = await getDocs(sharedAlbumsQuery);
+      const sharedAlbums = sharedSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      const combinedAlbums = [...newAlbums, ...sharedAlbums];
+      const uniqueAlbums = [
+        ...new Map(combinedAlbums.map((album) => [album.id, album])).values(),
+      ];
+
+      if (isRefresh) {
+        setAlbums(uniqueAlbums);
+      } else {
+        setAlbums((prev) => {
+          const albumIds = new Set(prev.map((album) => album.id));
+          const uniqueNewAlbums = uniqueAlbums.filter(
+            (album) => !albumIds.has(album.id)
+          );
+          return [...prev, ...uniqueNewAlbums];
+        });
+      }
+
+      setLastVisible(
+        snapshot.docs.length < ALBUMS_PER_PAGE
+          ? null
+          : snapshot.docs[snapshot.docs.length - 1]
+      );
+    } catch (error) {
+      console.error("Error fetching albums:", error);
+    }
+
+    setLoadingMore(false);
+  };
+
+  const refreshAlbums = async () => {
+    setRefreshing(true);
+    await fetchAlbums(true);
+    setRefreshing(false);
+  };
+
+  const handleCancelAlbumCreation = () => {
+    setModalVisible(false);
+    setCreatingAlbum(false);
     setNewAlbumName("");
     setNewAlbumEmails([]);
-    setModalVisible(false);
+    setNewAlbumError(null);
+  };
+
+  const handleCreateAlbum = async () => {
+    setCreatingAlbum(true);
+    setNewAlbumName(newAlbumName.trim());
+    if (!newAlbumName.trim()) {
+      setNewAlbumError("Album name is required.");
+      setCreatingAlbum(false);
+      return;
+    }
+
+    let userRefs = [];
+
+    try {
+      userRefs = await resolveEmailsToUserReferences(newAlbumEmails);
+      console.log("Resolved emails to user references:", userRefs);
+    } catch (error) {
+      setNewAlbumError("One or more emails are invalid.");
+      console.error("Error resolving emails to user references:", error);
+      setCreatingAlbum(false);
+      return;
+    }
+
+    try {
+      const authorRef = doc(db, "users", auth.currentUser.uid);
+
+      const newAlbum = {
+        authorId: authorRef,
+        name: newAlbumName,
+        cover: `https://picsum.photos/200?random=${Math.random()}`,
+        sharedWith: userRefs,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await addDoc(collection(db, "albums"), newAlbum);
+      handleCancelAlbumCreation();
+      await refreshAlbums();
+    } catch (error) {
+      console.error("Error adding album:", error);
+    }
+
+    setCreatingAlbum(false);
+  };
+
+  const resolveEmailsToUserReferences = async (emails) => {
+    const userRefs = [];
+
+    for (const email of emails) {
+      const userSnapshot = await getDocs(
+        query(collection(db, "users"), where("email", "==", email))
+      );
+
+      if (userSnapshot.empty) {
+        // Throw an error if no user is found for the given email
+        throw new Error(`Cannot resolve email ${email} to user reference`);
+      }
+
+      // Store the user document reference
+      userSnapshot.forEach((docSnapshot) => {
+        const userRef = doc(db, "users", docSnapshot.id);
+        userRefs.push(userRef);
+      });
+    }
+
+    return userRefs;
   };
 
   return (
     <>
       <Stack.Screen options={{ title: "Albums" }} />
       <View className="flex-1 bg-gray-100 p-4">
-        {/* Create New Album Button */}
         <TouchableOpacity
-          onPress={() => setModalVisible(true)}
           className="bg-gray-500 py-3 rounded-xl mb-4"
+          onPress={() => setModalVisible(true)}
         >
           <View className="flex-row items-center justify-center">
             <Add className="w-8 h-8 text-white" color="#fff" />
             <Text className="text-center text-white text-lg ml-2">
-              Create New Album
+              New Album
             </Text>
           </View>
         </TouchableOpacity>
-
-        {/* Albums List */}
         <FlatList
           data={albums}
           keyExtractor={(item) => item.id}
@@ -95,8 +217,22 @@ export default function AlbumsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={refreshAlbums} />
           }
           renderItem={({ item }) => <AlbumCard album={item} />}
-          onEndReached={loadMoreAlbums}
+          onEndReached={() => {
+            if (!loadingMore && lastVisible !== null) {
+              fetchAlbums();
+            }
+          }}
           onEndReachedThreshold={0.5}
+          ListEmptyComponent={
+            <View className="flex-1 items-center justify-center p-4">
+              <Text className="text-gray-500 text-lg text-center">
+                You have no albums yet.
+              </Text>
+              <Text className="text-gray-500 text-lg text-center">
+                Start by creating one!
+              </Text>
+            </View>
+          }
           ListFooterComponent={
             loadingMore ? (
               <ActivityIndicator size="large" className="my-4" />
@@ -104,7 +240,6 @@ export default function AlbumsScreen() {
           }
         />
 
-        {/* Modal for Creating New Album */}
         <Modal
           visible={modalVisible}
           onRequestClose={() => setModalVisible(false)}
@@ -114,7 +249,6 @@ export default function AlbumsScreen() {
             <View className="w-full p-4 bg-white rounded-xl">
               <Text className="text-xl font-bold mb-4">New Album</Text>
 
-              {/* Album Name Input */}
               <TextInput
                 value={newAlbumName}
                 onChangeText={setNewAlbumName}
@@ -122,17 +256,21 @@ export default function AlbumsScreen() {
                 className="border border-gray-300 rounded-md p-3 mb-4"
               />
 
-              {/* User Emails Input */}
               <EmailInput
                 emails={newAlbumEmails}
                 onEmailsChange={setNewAlbumEmails}
               />
 
-              {/* Buttons */}
+              {newAlbumError && (
+                <Text className="text-red-500 text-center mb-4">
+                  {newAlbumError}
+                </Text>
+              )}
+
               <View className="flex-row items-center justify-center gap-4">
                 <TouchableOpacity
                   className="bg-gray-300 py-3 rounded-md mt-4 flex-1"
-                  onPress={() => setModalVisible(false)}
+                  onPress={handleCancelAlbumCreation}
                 >
                   <Text className="text-center text-gray-700 text-lg">
                     Cancel
@@ -141,10 +279,20 @@ export default function AlbumsScreen() {
                 <TouchableOpacity
                   className="bg-blue-500 py-3 rounded-md mt-4 flex-1"
                   onPress={handleCreateAlbum}
+                  disabled={creatingAlbum}
                 >
-                  <Text className="text-center text-white text-lg">
-                    Create Album
-                  </Text>
+                  <View className="flex-row items-center justify-center">
+                    {creatingAlbum && (
+                      <ActivityIndicator
+                        size="small"
+                        color="#fff"
+                        className="mr-2"
+                      />
+                    )}
+                    <Text className="text-center text-white text-lg">
+                      {creatingAlbum ? "Creating..." : "Create Album"}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               </View>
             </View>

@@ -1,9 +1,11 @@
+import Logout from "@assets/Logout";
 import Avatar from "@components/Avatar";
+import { auth } from "@services/firebase";
 import "@src/global.css";
-import { auth } from "@src/services/firebase";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Modal, Text, TouchableOpacity, View } from "react-native";
+import { Modal, StatusBar, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Layout() {
   const [user, setUser] = useState(null);
@@ -27,7 +29,8 @@ export default function Layout() {
   };
 
   return (
-    <>
+    <SafeAreaView style={{ flex: 1 }}>
+      <StatusBar barStyle="light-content" />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: "#3f3f3f" },
@@ -35,7 +38,7 @@ export default function Layout() {
           headerRight: () =>
             user && (
               <TouchableOpacity
-                onPress={toggleDropdown}
+                onPressIn={toggleDropdown}
                 style={{ paddingRight: 10 }}
               >
                 <Avatar user={user} />
@@ -61,13 +64,16 @@ export default function Layout() {
             <Text className="mb-3 font-semibold text-black">{user?.email}</Text>
             <TouchableOpacity
               onPress={handleLogout}
-              className="bg-blue-500 p-2 rounded-lg"
+              className="bg-blue-500 p-2 rounded-lg flex-row items-center justify-center"
             >
-              <Text className="text-white text-center font-bold">Log out</Text>
+              <Text className="text-white text-center font-bold mx-2">
+                Log out
+              </Text>
+              <Logout fill="#fff" width={24} height={24} />
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
-    </>
+    </SafeAreaView>
   );
 }

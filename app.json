@@ -1,9 +1,6 @@
 {
   "expo": {
-    "web": {
-      "bundler": "metro",
-      "displayName": "Mi test"
-    },
+    "userInterfaceStyle": "automatic",
     "plugins": [
       [
         "expo-camera",
@@ -14,6 +11,13 @@
           "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
         }
       ]
-    ]
+    ],
+    "android": {
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.anonymous.myapp"
+    }
   }
 }

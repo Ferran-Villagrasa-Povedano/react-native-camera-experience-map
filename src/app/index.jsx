@@ -1,5 +1,5 @@
-import { auth } from "@src/services/firebase";
-import { useRouter,  } from "expo-router";
+import { auth } from "@services/firebase";
+import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 
@@ -15,7 +15,7 @@ export default function IndexScreen() {
         router.replace("/login");
       }
     };
-      //test@test.com
+    //test@test.com
     const timeoutId = setTimeout(() => {
       checkAuthStatus();
     }, 100);
@@ -28,4 +28,4 @@ export default function IndexScreen() {
       <ActivityIndicator />
     </View>
   );
-};
+}

@@ -1,9 +1,8 @@
+import { auth, db } from "@services/firebase";
 import * as Location from "expo-location";
-import React from "react";
-import { useState, useEffect } from "react";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
-import { db, auth } from "@src/services/firebase";
-import { StyleSheet, View, Image } from "react-native";
+import { collection, onSnapshot } from "firebase/firestore";
+import React, { useEffect, useState } from "react";
+import { Image, StyleSheet, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 
 export default function App() {
@@ -20,23 +19,23 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-      const currentUser = auth.currentUser;
-      if (!currentUser) return; 
-  
-      const userMediaRef = collection(db, `users/${currentUser.uid}/media`);
-  
-      const unsubscribe = onSnapshot(userMediaRef, (querySnapshot) => {
-        const images = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setImages(images);
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
 
-        console.log(images);
-      });
-  
-      return () => unsubscribe();
-    }, []);
+    const userMediaRef = collection(db, `users/${currentUser.uid}/media`);
+
+    const unsubscribe = onSnapshot(userMediaRef, (querySnapshot) => {
+      const images = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setImages(images);
+
+      console.log(images);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -59,21 +58,23 @@ export default function App() {
           image={{
             uri: "https://fastly.picsum.photos/id/16/200/300.jpg?hmac=k64O1qCMBhaU0Ep_qML5_xDxqLVR1MhNm8VMqgdAsxA",
           }}
-        >
-        </Marker>
+        ></Marker>
 
         {images.map((image) => (
           <Marker
-          key={image.id}
-          coordinate={{ latitude: image.latitude, longitude: image.longitude }}
-        >
-          <View style={{ width: 30, height: 30}}>
-            <Image
-              source={{ uri: `data:image/jpeg;base64,${image.base64}` }}
-              style={{ width: 30, height: 30 }}
-            />
-          </View>
-        </Marker>
+            key={image.id}
+            coordinate={{
+              latitude: image.latitude,
+              longitude: image.longitude,
+            }}
+          >
+            <View style={{ width: 30, height: 30 }}>
+              <Image
+                source={{ uri: `data:image/jpeg;base64,${image.base64}` }}
+                style={{ width: 30, height: 30 }}
+              />
+            </View>
+          </Marker>
         ))}
       </MapView>
     </View>

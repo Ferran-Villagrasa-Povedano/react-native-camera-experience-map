@@ -1,4 +1,5 @@
-import { auth } from "@src/services/firebase";
+import Login from "@assets/Login";
+import { auth } from "@services/firebase";
 import { useRouter } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import React, { useRef, useState } from "react";
@@ -43,6 +44,7 @@ export default function LoginScreen() {
         onChangeText={setEmail}
         placeholder="Email"
         keyboardType="email-address"
+        autoCapitalize="none"
         className="p-4 border border-gray-300 rounded-lg mb-4"
         onSubmitEditing={() => passwordRef.current.focus()}
       />
@@ -52,6 +54,7 @@ export default function LoginScreen() {
         value={password}
         onChangeText={setPassword}
         placeholder="Password"
+        autoCapitalize="none"
         secureTextEntry
         className="p-4 border border-gray-300 rounded-lg mb-4"
         onSubmitEditing={() => handleLogin()}
@@ -61,10 +64,11 @@ export default function LoginScreen() {
 
       <TouchableOpacity
         onPress={handleLogin}
-        className="bg-blue-500 p-4 rounded-lg mb-4"
+        className="bg-blue-500 p-4 rounded-lg mb-4 flex-row items-center justify-center"
         disabled={isLoading}
       >
-        <Text className="text-white text-center font-bold">Login</Text>
+        <Text className="text-white text-center font-bold my-2">Login</Text>
+        <Login fill="#fff" width={24} height={24} />
       </TouchableOpacity>
 
       <View className="flex-row justify-center mt-4">
@@ -78,4 +82,4 @@ export default function LoginScreen() {
       </View>
     </View>
   );
-};
+}

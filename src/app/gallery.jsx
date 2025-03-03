@@ -1,17 +1,17 @@
-import { db, auth } from "@src/services/firebase";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
-import { useState, useEffect } from "react";
-import { View, Text, Image, FlatList } from "react-native";
+import { auth, db } from "@services/firebase";
+import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { FlatList, Image, Text, View } from "react-native";
 
 export default function GalleryScreen() {
   const [images, setImages] = useState([]);
 
   useEffect(() => {
     const currentUser = auth.currentUser;
-    if (!currentUser) return; 
+    if (!currentUser) return;
 
     const userMediaRef = collection(db, `users/${currentUser.uid}/media`);
-    const userMediaRefSorted = query(userMediaRef, orderBy("timestamp", "asc")); 
+    const userMediaRefSorted = query(userMediaRef, orderBy("timestamp", "asc"));
 
     const unsubscribe = onSnapshot(userMediaRefSorted, (querySnapshot) => {
       const images = querySnapshot.docs.map((doc) => ({
@@ -30,8 +30,8 @@ export default function GalleryScreen() {
         className="mt-1"
         data={images}
         keyExtractor={(item) => item.id}
-        numColumns={3} 
-        columnWrapperStyle={{ justifyContent: "left" }} 
+        numColumns={3}
+        columnWrapperStyle={{ justifyContent: "left" }}
         renderItem={({ item }) => (
           <View style={{ margin: 3 }}>
             {item.base64 ? (

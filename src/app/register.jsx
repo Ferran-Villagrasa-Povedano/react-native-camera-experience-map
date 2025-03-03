@@ -1,6 +1,7 @@
-import { auth } from "@src/services/firebase";
+import { auth, db } from "@services/firebase";
 import { useRouter } from "expo-router";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 import { useRef, useState } from "react";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 
@@ -35,10 +36,21 @@ export default function RegisterScreen() {
         email,
         password
       );
-      updateProfile(userCredential.user, {
+
+      const user = userCredential.user;
+
+      await updateProfile(user, {
         displayName,
         photoURL: null,
       });
+
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+      });
+
       router.replace("/home");
     } catch (error) {
       alert(error.message);
@@ -66,6 +78,7 @@ export default function RegisterScreen() {
         onChangeText={setEmail}
         placeholder="Email"
         keyboardType="email-address"
+        autoCapitalize="none"
         className="p-4 border border-gray-300 rounded-lg mb-4"
         onSubmitEditing={() => passwordRef.current.focus()}
       />
