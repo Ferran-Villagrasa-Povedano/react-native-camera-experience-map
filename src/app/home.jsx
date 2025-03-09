@@ -1,6 +1,8 @@
+import Add from "@assets/Add";
 import AlbumCard from "@components/AlbumCard";
-import { auth, db } from "@src/services/firebase";
-import { Stack } from "expo-router";
+import EmailInput from "@components/EmailInput";
+import { auth, db, logQuery } from "@src/services/firebase";
+import { Stack, useRouter } from "expo-router";
 import {
   addDoc,
   collection,
@@ -24,9 +26,6 @@ import {
   View,
 } from "react-native";
 
-import Add from "@assets/Add";
-import EmailInput from "@components/EmailInput";
-
 export default function AlbumsScreen() {
   const [albums, setAlbums] = useState([]);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -39,6 +38,8 @@ export default function AlbumsScreen() {
   const [newAlbumError, setNewAlbumError] = useState(null);
   const ALBUMS_PER_PAGE = 10;
 
+  const router = useRouter();
+
   useEffect(() => {
     fetchAlbums(true);
   }, []);
@@ -49,10 +50,10 @@ export default function AlbumsScreen() {
     setLoadingMore(true);
 
     try {
-      let q = collection(db, "albums");
+      const albumsRef = collection(db, "albums");
 
-      q = query(
-        q,
+      let q = query(
+        albumsRef,
         orderBy("updatedAt", "desc"),
         limit(ALBUMS_PER_PAGE),
         where("authorId", "==", doc(db, "users", auth.currentUser.uid))
@@ -62,6 +63,7 @@ export default function AlbumsScreen() {
         q = query(q, startAfter(lastVisible));
       }
 
+      logQuery(q);
       const snapshot = await getDocs(q);
       const newAlbums = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -79,6 +81,7 @@ export default function AlbumsScreen() {
         limit(ALBUMS_PER_PAGE)
       );
 
+      logQuery(sharedAlbumsQuery);
       const sharedSnapshot = await getDocs(sharedAlbumsQuery);
       const sharedAlbums = sharedSnapshot.docs.map((doc) => ({
         id: doc.id,
@@ -155,15 +158,16 @@ export default function AlbumsScreen() {
       const newAlbum = {
         authorId: authorRef,
         name: newAlbumName,
-        cover: `https://picsum.photos/200?random=${Math.random()}`,
+        cover: null,
         sharedWith: userRefs,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      await addDoc(collection(db, "albums"), newAlbum);
+      const albumDoc = await addDoc(collection(db, "albums"), newAlbum);
       handleCancelAlbumCreation();
       await refreshAlbums();
+      router.push(`/album/${albumDoc.id}`);
     } catch (error) {
       console.error("Error adding album:", error);
     }
@@ -180,11 +184,9 @@ export default function AlbumsScreen() {
       );
 
       if (userSnapshot.empty) {
-        // Throw an error if no user is found for the given email
         throw new Error(`Cannot resolve email ${email} to user reference`);
       }
 
-      // Store the user document reference
       userSnapshot.forEach((docSnapshot) => {
         const userRef = doc(db, "users", docSnapshot.id);
         userRefs.push(userRef);
@@ -259,6 +261,7 @@ export default function AlbumsScreen() {
               <EmailInput
                 emails={newAlbumEmails}
                 onEmailsChange={setNewAlbumEmails}
+                placeholder="Enter album name"
               />
 
               {newAlbumError && (

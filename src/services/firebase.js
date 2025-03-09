@@ -13,7 +13,9 @@ import { getReactNativePersistence, initializeAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-
+const logQuery = async (q) => {
+  console.log("Firestore Query:", q._query.path.segments.join("/"), q._query.explicitOrderBy.map(o => o.fieldPath?.fieldName));
+}
 
 const firebaseConfig = {
   apiKey: FIREBASE_API_KEY,
@@ -41,6 +43,6 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 console.log(app, auth, db, storage);
 
-export { app, auth, db, storage };
+export { app, auth, db, logQuery, storage };
 
 

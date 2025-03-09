@@ -3,20 +3,14 @@ import FlashOff from "@assets/FlashOff";
 import FlashOn from "@assets/FlashOn";
 import FlipCameraAndroid from "@assets/FlipCameraAndroid";
 import { auth, db } from "@services/firebase";
+import compressImage from "@utils/compressImage";
 import { Camera, CameraView } from "expo-camera";
-import * as ImageManipulator from "expo-image-manipulator";
 import * as Location from "expo-location";
 import * as MediaLibrary from "expo-media-library";
 import { useLocalSearchParams } from "expo-router";
-import { addDoc, collection, doc } from "firebase/firestore";
+import { addDoc, collection, doc, updateDoc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Button,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 
 export default function CameraScreen() {
   const [permissionsGranted, setPermissionsGranted] = useState(false);
@@ -30,13 +24,8 @@ export default function CameraScreen() {
   const { albumId } = useLocalSearchParams();
 
   useEffect(() => {
-    const interval = setInterval(async () => {
-      if (takingPicture) return;
-      checkGpsStatus();
-      checkPermissions();
-    }, 5000);
-
-    return () => clearInterval(interval);
+    checkPermissions();
+    checkGpsStatus();
   }, []);
 
   const checkGpsStatus = async () => {
@@ -67,27 +56,25 @@ export default function CameraScreen() {
     setCheckingPermissions(false);
   };
 
-  //test@test.com
-
-  if (!permissionsGranted || !gpsEnabled) {
-    return (
-      <View className="flex-1 justify-center items-center">
-        {!gpsEnabled && (
-          <Text className="text-center pb-2 text-red-500">
-            GPS is disabled. Please enable location services.
-          </Text>
-        )}
-        {!permissionsGranted && (
-          <>
-            <Text className="text-center pb-2 text-red-500">
-              Camera, Location, and Library permissions are not granted.
-            </Text>
-            <Button onPress={checkPermissions} title="Grant All Permissions" />
-          </>
-        )}
-      </View>
-    );
-  }
+  // if (!permissionsGranted || !gpsEnabled) {
+  //   return (
+  //     <View className="flex-1 justify-center items-center">
+  //       {!gpsEnabled && (
+  //         <Text className="text-center pb-2 text-red-500">
+  //           GPS is disabled. Please enable location services.
+  //         </Text>
+  //       )}
+  //       {!permissionsGranted && (
+  //         <>
+  //           <Text className="text-center pb-2 text-red-500">
+  //             Camera, Location, and Library permissions are not granted.
+  //           </Text>
+  //           <Button onPress={checkPermissions} title="Grant All Permissions" />
+  //         </>
+  //       )}
+  //     </View>
+  //   );
+  // }
 
   const toggleCameraFacing = () => {
     setFacing((current) => (current === "back" ? "front" : "back"));
@@ -99,38 +86,10 @@ export default function CameraScreen() {
     );
   };
 
-  const compressImage = async (photo, targetSize, minQuality = 0.1) => {
-    let low = minQuality;
-    let high = 1;
-    let quality = high;
-    let compressedPhoto = photo;
-
-    const targetBase64Size = Math.floor((targetSize * 4) / 3);
-
-    if (photo.base64 && photo.base64.length <= targetBase64Size) {
-      return { compressedPhoto: photo, quality };
-    }
-
-    while (high - low > 0.01) {
-      quality = (low + high) / 2;
-      const result = await ImageManipulator.manipulateAsync(photo.uri, [], {
-        compress: quality,
-        format: ImageManipulator.SaveFormat.JPEG,
-        base64: true,
-      });
-
-      if (result.base64.length > targetBase64Size) {
-        high = quality;
-      } else {
-        low = quality;
-        compressedPhoto = result;
-      }
-    }
-
-    return { compressedPhoto, quality };
-  };
-
   const takePhoto = async () => {
+    checkPermissions();
+    checkGpsStatus();
+
     if (!cameraRef.current) {
       return;
     }
@@ -154,17 +113,16 @@ export default function CameraScreen() {
 
       const fileName = `IMG_${timestamp}_LAT${latitude}_LON${longitude}.jpg`;
 
-      const targetSize = 700_000;
+      const targetSize = 1_000_000;
       const { compressedPhoto, quality } = await compressImage(
         photo,
         targetSize
       );
-      console.log(`TargetSize: ${targetSize}`);
       console.log(`Quality: ${quality.toFixed(2)}`);
+      console.log(`TargetSize: ${targetSize}`);
       console.log(`Original photo size: ${photo.base64.length}`);
       console.log(`Compressed photo size: ${compressedPhoto.base64.length}`);
 
-      // const asset = await MediaLibrary.createAssetAsync(compressedPhoto.uri);
       console.log("User id:", auth.currentUser.uid);
       const userMediaRef = collection(db, `albums/${albumId}/media`);
 
@@ -173,12 +131,17 @@ export default function CameraScreen() {
         type: "image/jpeg",
         fileName: fileName,
         base64: `data:image/jpeg;base64,${compressedPhoto.base64}`,
+        quality: quality,
         latitude,
         longitude,
         timestamp,
       };
 
       await addDoc(userMediaRef, photoData);
+
+      const albumRef = doc(db, `albums/${albumId}`);
+      await updateDoc(albumRef, { updatedAt: new Date().toISOString() });
+
       console.log("Photo added to Firestore");
     } catch (error) {
       console.error("Error taking photo:", error);

@@ -1,16 +1,15 @@
 import AddAPhoto from "@assets/AddAPhoto";
 import AddPhotoAlternate from "@assets/AddPhotoAlternate";
 import MediaCard from "@components/MediaCard";
-import { db } from "@services/firebase";
-import { ImagePicker } from "expo-image-picker";
+import { db, logQuery } from "@services/firebase";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   limit,
-  onSnapshot,
   orderBy,
   query,
   startAfter,
@@ -25,9 +24,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import ImageViewer from "react-native-image-zoom-viewer";
 
-import Delete from "@assets/Delete";
+import MoreVert from "@assets/MoreVert";
+import ImageViewer from "react-native-image-zoom-viewer";
 
 export default function AlbumScreen() {
   const { albumId } = useLocalSearchParams();
@@ -39,21 +38,19 @@ export default function AlbumScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [menuVisible, setMenuVisible] = useState(false);
 
   const MEDIA_PER_PAGE = 10;
   const router = useRouter();
-  const albumRef = doc(db, "albums", albumId);
 
   useEffect(() => {
     if (!albumId) return;
-
-    const unsubscribe = onSnapshot(albumRef, (docSnapshot) => {
-      if (docSnapshot.exists()) {
-        setAlbum(docSnapshot.data());
+    const albumRef = doc(db, "albums", albumId);
+    getDoc(albumRef).then((doc) => {
+      if (doc.exists()) {
+        setAlbum({ id: doc.id, ...doc.data() });
       }
     });
-
-    return () => unsubscribe();
   });
 
   useEffect(() => {
@@ -65,13 +62,18 @@ export default function AlbumScreen() {
 
     setLoadingMore(true);
     const mediaRef = collection(db, `albums/${albumId}/media`);
-    let q = query(mediaRef, orderBy("timestamp"), limit(MEDIA_PER_PAGE));
+    let q = query(
+      mediaRef,
+      orderBy("timestamp", "desc"),
+      limit(MEDIA_PER_PAGE)
+    );
 
     if (!isRefresh && lastVisible) {
       q = query(q, startAfter(lastVisible));
     }
 
     try {
+      logQuery(q);
       const snapshot = await getDocs(q);
       const newMedia = [];
 
@@ -104,19 +106,14 @@ export default function AlbumScreen() {
   };
 
   const handleImportFromGallery = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
-
-    if (!result.cancelled) {
-      console.log("Selected image from gallery:", result.uri);
-    }
+    // TODO: finish
   };
 
-  const deleteMedia = async (mediaId) => {
+  const handleTakePhoto = () => {
+    router.push({ pathname: "/camera", params: { albumId } });
+  };
+
+  const handleDeleteMedia = async (mediaId) => {
     try {
       await deleteDoc(doc(db, "albums", albumId, "media", mediaId));
       await refreshMedia();
@@ -125,8 +122,28 @@ export default function AlbumScreen() {
     }
   };
 
-  const handleTakePhoto = () => {
-    router.push({ pathname: "/camera", params: { albumId } });
+  const handleDownloadMedia = async (mediaId) => {
+    try {
+      // TODO: finish
+    } catch (error) {
+      console.error("Error downloading media:", error);
+    }
+  };
+
+  const handleSetAsAlbumCover = async (mediaId) => {
+    try {
+      // TODO: finish
+    } catch (error) {
+      console.error("Error setting as album cover:", error);
+    }
+  };
+
+  const handleSetAsProfilePicture = async (mediaId) => {
+    try {
+      // TODO: finish
+    } catch (error) {
+      console.error("Error setting as profile picture:", error);
+    }
   };
 
   const openImageViewer = (index) => {
@@ -136,14 +153,16 @@ export default function AlbumScreen() {
 
   if (!album) {
     return (
-      <View className="flex-1 justify-center items-center">
-        <ActivityIndicator size="large" />
-      </View>
+      <>
+        <Stack.Screen options={{ title: "Album" }} />
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" />
+        </View>
+      </>
     );
   }
 
   const imageUrls = media.map((item) => ({ url: item.base64 }));
-
   return (
     <>
       <Stack.Screen options={{ title: album?.name }} />
@@ -228,19 +247,64 @@ export default function AlbumScreen() {
           backgroundColor="black"
           renderHeader={() => (
             <View className="flex-row justify-end items-center p-4 bg-black bg-opacity-50">
-              <TouchableOpacity
-                onPress={() => {
-                  const mediaId = media[currentImageIndex].id;
-                  deleteMedia(mediaId);
-                  setIsImageViewerVisible(false);
-                }}
-                className="bg-red-600 py-2 px-2 rounded-full"
-              >
-                <Delete className="w-8 h-8 text-white" color="#fff" />
+              <TouchableOpacity onPress={() => setMenuVisible(true)}>
+                <MoreVert className="w-8 h-8 text-white" color="#fff" />
               </TouchableOpacity>
             </View>
           )}
         />
+      </Modal>
+
+      <Modal visible={menuVisible} transparent={true} animationType="fade">
+        <TouchableOpacity
+          className="w-full h-full bg-black/50 bg-opacity-50"
+          onPress={() => setMenuVisible(false)}
+        />
+        <View
+          className="flex-col items-start"
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            backgroundColor: "white",
+            padding: 8,
+            borderRadius: 5,
+            elevation: 5,
+          }}
+        >
+          <TouchableOpacity
+            className="p-2"
+            onPress={() => {
+              handleDeleteMedia(media[currentImageIndex].id);
+              setMenuVisible(false);
+              setIsImageViewerVisible(false);
+            }}
+          >
+            <Text>Delete Image</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="p-2"
+            onPress={() => {
+              handleDownloadMedia(media[currentImageIndex].id);
+            }}
+          >
+            <Text>Download Image</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="p-2"
+            onPress={() => handleSetAsAlbumCover(media[currentImageIndex].id)}
+          >
+            <Text>Set as Album Cover</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="p-2"
+            onPress={() =>
+              handleSetAsProfilePicture(media[currentImageIndex].id)
+            }
+          >
+            <Text>Set as Profile Picture</Text>
+          </TouchableOpacity>
+        </View>
       </Modal>
     </>
   );
