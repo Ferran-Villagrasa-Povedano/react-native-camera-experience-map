@@ -1,4 +1,4 @@
-# Pràctica 2: Primer contacte amb Firebase
+# Projecte 1: Camera experience
 
 ## Instruccions d'instal·lació, execució i ús de l'app
 
@@ -25,4 +25,4 @@
 
 ### Ús
 1. Registreu un nou usuari o utilitzeu l'usuari `test@test.com` i `123456`.
-2. Interactueu amb les tasques, incloent-hi completar-les i eliminar-les.
+2. Crear un àlbum i afegir fotos.
