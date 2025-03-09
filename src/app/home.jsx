@@ -1,7 +1,7 @@
 import Add from "@assets/Add";
 import AlbumCard from "@components/AlbumCard";
 import EmailInput from "@components/EmailInput";
-import { auth, db, logQuery } from "@src/services/firebase";
+import { auth, db } from "@src/services/firebase";
 import { Stack, useRouter } from "expo-router";
 import {
   addDoc,
@@ -69,7 +69,8 @@ export default function AlbumsScreen() {
         q = query(q, startAfter(lastVisible));
       }
 
-      logQuery(q);
+      console.log("Fetching albums");
+
       const snapshot = await getDocs(q);
       const newAlbums = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -87,7 +88,6 @@ export default function AlbumsScreen() {
         limit(ALBUMS_PER_PAGE)
       );
 
-      logQuery(sharedAlbumsQuery);
       const sharedSnapshot = await getDocs(sharedAlbumsQuery);
       const sharedAlbums = sharedSnapshot.docs.map((doc) => ({
         id: doc.id,

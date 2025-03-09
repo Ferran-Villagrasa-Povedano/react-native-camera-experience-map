@@ -1,7 +1,7 @@
 import AddAPhoto from "@assets/AddAPhoto";
 import AddPhotoAlternate from "@assets/AddPhotoAlternate";
 import MediaCard from "@components/MediaCard";
-import { auth, db, logQuery } from "@services/firebase";
+import { auth, db } from "@services/firebase";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { updateProfile } from "firebase/auth";
 import {
@@ -47,6 +47,7 @@ export default function AlbumScreen() {
   const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [importingFromGallery, setImportingFromGallery] = useState(false);
 
   const MEDIA_PER_PAGE = 10;
   const router = useRouter();
@@ -80,8 +81,9 @@ export default function AlbumScreen() {
       q = query(q, startAfter(lastVisible));
     }
 
+    console.log("Fetching media:", albumId);
+
     try {
-      logQuery(q);
       const snapshot = await getDocs(q);
       const newMedia = [];
 
@@ -114,6 +116,7 @@ export default function AlbumScreen() {
   };
 
   const handleImportFromGallery = async () => {
+    setImportingFromGallery(true);
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -123,18 +126,22 @@ export default function AlbumScreen() {
 
       if (result.canceled || !result.assets.length) return;
 
-      for (const asset of result.assets) {
-        const timestamp = new Date().toISOString().replace(/[:.-]/g, "_");
-        const location = await Location.getCurrentPositionAsync({
-          enableHighAccuracy: true,
-        });
+      const timestamp = new Date().toISOString().replace(/[:.-]/g, "_");
 
-        const latitude = location?.coords?.latitude || 0;
-        const longitude = location?.coords?.longitude || 0;
+      const location = await Location.getCurrentPositionAsync({
+        enableHighAccuracy: true,
+      });
 
+      const latitude = location?.coords?.latitude || 0;
+      const longitude = location?.coords?.longitude || 0;
+
+      const userMediaRef = collection(db, `albums/${albumId}/media`);
+      const albumRef = doc(db, `albums/${albumId}`);
+
+      const uploadPromises = result.assets.map(async (asset) => {
         const fileName = `IMG_${timestamp}_LAT${latitude}_LON${longitude}.jpg`;
-
         const targetSize = 1_000_000;
+
         const { compressedPhoto, quality } = await compressImage(
           asset,
           targetSize
@@ -144,12 +151,10 @@ export default function AlbumScreen() {
         console.log(`Original photo size: ${asset.base64.length}`);
         console.log(`Compressed photo size: ${compressedPhoto.base64.length}`);
 
-        const userMediaRef = collection(db, `albums/${albumId}/media`);
-
         const photoData = {
           author: doc(db, `users/${auth.currentUser.uid}`),
           type: "image/jpeg",
-          fileName: fileName,
+          fileName,
           base64: `data:image/jpeg;base64,${compressedPhoto.base64}`,
           quality,
           latitude,
@@ -158,22 +163,26 @@ export default function AlbumScreen() {
         };
 
         const mediaDocRef = await addDoc(userMediaRef, photoData);
+        console.log("Imported photo added to Firestore:", mediaDocRef.path);
 
-        const albumRef = doc(db, `albums/${albumId}`);
-        await updateDoc(albumRef, { updatedAt: new Date().toISOString() });
+        return mediaDocRef;
+      });
 
-        const mediaSnapshot = await getDocs(userMediaRef);
-        if (mediaSnapshot.size === 1) {
-          await updateDoc(albumRef, { coverRef: mediaDocRef });
-          console.log("Updated album cover");
-        }
+      const mediaRefs = await Promise.all(uploadPromises);
 
-        console.log("Imported photo added to Firestore", mediaDocRef.path);
+      await updateDoc(albumRef, { updatedAt: new Date().toISOString() });
 
-        await fetchMedia(true);
+      const mediaSnapshot = await getDocs(userMediaRef);
+      if (mediaSnapshot.size === mediaRefs.length) {
+        await updateDoc(albumRef, { coverRef: mediaRefs[0] });
+        console.log("Updated album cover");
       }
+
+      await fetchMedia(true);
     } catch (error) {
       console.error("Error importing from gallery:", error);
+    } finally {
+      setImportingFromGallery(false);
     }
   };
 
@@ -291,7 +300,14 @@ export default function AlbumScreen() {
             className="bg-gray-500 py-3 rounded-xl mb-4 flex-1 mr-2"
           >
             <View className="flex-row items-center justify-center">
-              <AddPhotoAlternate className="w-8 h-8 text-white" color="#fff" />
+              {importingFromGallery ? (
+                <ActivityIndicator size="small" color="#fff" className="mr-2" />
+              ) : (
+                <AddPhotoAlternate
+                  className="w-8 h-8 text-white"
+                  color="#fff"
+                />
+              )}
               <Text className="text-center text-white text-lg ml-2">
                 Add Photo
               </Text>
