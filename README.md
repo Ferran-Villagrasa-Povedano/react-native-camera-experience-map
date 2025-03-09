@@ -5,11 +5,11 @@
 ### Instal·lació
 1. Cloneu el repositori:
         ```bash
-        git clone https://github.com/Ferran-Villagrasa-Povedano/react-native-firebase.git
+        git clone https://github.com/Ferran-Villagrasa-Povedano/react-native-camera-experience
         ```
 2. Navegueu al directori del projecte:
         ```bash
-        cd react-native-firebase
+        cd react-native-camera-experience
         ```
 3. Instal·leu les dependències:
         ```bash
