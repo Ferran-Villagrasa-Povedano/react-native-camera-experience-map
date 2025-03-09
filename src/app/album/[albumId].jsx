@@ -5,6 +5,7 @@ import { auth, db, logQuery } from "@services/firebase";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { updateProfile } from "firebase/auth";
 import {
+  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -28,7 +29,10 @@ import {
 } from "react-native";
 
 import MoreVert from "@assets/MoreVert";
+import compressImage from "@utils/compressImage";
 import * as FileSystem from "expo-file-system";
+import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
 import * as MediaLibrary from "expo-media-library";
 import ImageViewer from "react-native-image-zoom-viewer";
 
@@ -110,7 +114,67 @@ export default function AlbumScreen() {
   };
 
   const handleImportFromGallery = async () => {
-    // TODO: finish
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        base64: true,
+      });
+
+      if (result.canceled || !result.assets.length) return;
+
+      for (const asset of result.assets) {
+        const timestamp = new Date().toISOString().replace(/[:.-]/g, "_");
+        const location = await Location.getCurrentPositionAsync({
+          enableHighAccuracy: true,
+        });
+
+        const latitude = location?.coords?.latitude || 0;
+        const longitude = location?.coords?.longitude || 0;
+
+        const fileName = `IMG_${timestamp}_LAT${latitude}_LON${longitude}.jpg`;
+
+        const targetSize = 1_000_000;
+        const { compressedPhoto, quality } = await compressImage(
+          asset,
+          targetSize
+        );
+
+        console.log(`Quality: ${quality.toFixed(2)}`);
+        console.log(`Original photo size: ${asset.base64.length}`);
+        console.log(`Compressed photo size: ${compressedPhoto.base64.length}`);
+
+        const userMediaRef = collection(db, `albums/${albumId}/media`);
+
+        const photoData = {
+          author: doc(db, `users/${auth.currentUser.uid}`),
+          type: "image/jpeg",
+          fileName: fileName,
+          base64: `data:image/jpeg;base64,${compressedPhoto.base64}`,
+          quality,
+          latitude,
+          longitude,
+          timestamp,
+        };
+
+        const mediaDocRef = await addDoc(userMediaRef, photoData);
+
+        const albumRef = doc(db, `albums/${albumId}`);
+        await updateDoc(albumRef, { updatedAt: new Date().toISOString() });
+
+        const mediaSnapshot = await getDocs(userMediaRef);
+        if (mediaSnapshot.size === 1) {
+          await updateDoc(albumRef, { coverRef: mediaDocRef });
+          console.log("Updated album cover");
+        }
+
+        console.log("Imported photo added to Firestore", mediaDocRef.path);
+
+        await fetchMedia(true);
+      }
+    } catch (error) {
+      console.error("Error importing from gallery:", error);
+    }
   };
 
   const handleTakePhoto = () => {
@@ -121,7 +185,7 @@ export default function AlbumScreen() {
     try {
       const mediaRef = doc(db, "albums", albumId, "media", mediaId);
       await deleteDoc(mediaRef);
-      await refreshMedia(true);
+      await fetchMedia(true);
 
       console.log("Media deleted:", mediaRef.path);
     } catch (error) {
