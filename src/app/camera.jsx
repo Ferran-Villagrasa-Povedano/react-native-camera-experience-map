@@ -2,12 +2,13 @@ import FlashAuto from "@assets/FlashAuto";
 import FlashOff from "@assets/FlashOff";
 import FlashOn from "@assets/FlashOn";
 import FlipCameraAndroid from "@assets/FlipCameraAndroid";
+import PermMedia from "@assets/PermMedia";
 import { auth, db } from "@services/firebase";
 import compressImage from "@utils/compressImage";
 import { Camera, CameraView } from "expo-camera";
 import * as Location from "expo-location";
 import * as MediaLibrary from "expo-media-library";
-import { useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import {
   addDoc,
   collection,
@@ -17,9 +18,6 @@ import {
 } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
-import Entypo from '@expo/vector-icons/Entypo';
-import { useRouter } from "expo-router";
-
 export default function CameraScreen() {
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const [checkingPermissions, setCheckingPermissions] = useState(true);
@@ -166,60 +164,69 @@ export default function CameraScreen() {
   };
 
   return (
-    <View className="flex-1">
-      <CameraView
-        ref={cameraRef}
-        className="flex-1"
-        facing={facing}
-        flash={flash}
-      >
-        <View className="w-full h-full bg-transparent flex-row justify-between p-4">
-          {/* Top Bar */}
-          <View className="absolute top-0 w-full flex-row justify-between p-4">
-            <TouchableOpacity
-              className="p-4 bg-black/50 rounded-full"
-              onPress={toggleFlashMode}
-            >
-              {flash === "off" ? (
-                <FlashOff className="w-8 h-8 text-white" color="#fff" />
-              ) : flash === "on" ? (
-                <FlashOn className="w-8 h-8 text-white" color="#fff" />
-              ) : (
-                <FlashAuto className="w-8 h-8 text-white" color="#fff" />
-              )}
-            </TouchableOpacity>
+    <>
+      <Stack.Screen options={{ title: "Camera" }} />
+      <View className="flex-1">
+        <CameraView
+          ref={cameraRef}
+          className="flex-1"
+          facing={facing}
+          flash={flash}
+        >
+          <View className="w-full h-full p-4 bg-transparent flex-row justify-between items-center">
+            {/* Top Bar */}
+            <View className="absolute top-0 w-full p-4 flex-row justify-between items-center">
+              <TouchableOpacity
+                className="p-4 bg-black/50 rounded-full"
+                onPress={toggleFlashMode}
+              >
+                {flash === "off" ? (
+                  <FlashOff className="w-8 h-8 text-white" color="#fff" />
+                ) : flash === "on" ? (
+                  <FlashOn className="w-8 h-8 text-white" color="#fff" />
+                ) : (
+                  <FlashAuto className="w-8 h-8 text-white" color="#fff" />
+                )}
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              className="p-4 bg-black/50 rounded-full"
-              onPress={toggleCameraFacing}
-            >
-              <FlipCameraAndroid className="w-8 h-8 text-white" color="#fff" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Bottom Bar */}
-          <View className="absolute bottom-8 w-full flex-row px-8 justify-center items-center">
-            <TouchableOpacity
-              className="w-16 h-16 bg-white rounded-full border-4 border-gray-300 justify-center items-center"
-              onPress={takePhoto}
-            >
-              {takingPicture && (
-                <ActivityIndicator
-                  className="z-10"
-                  size="large"
-                  color="#d1d5db"
+              <TouchableOpacity
+                className="p-4 bg-black/50 rounded-full"
+                onPress={toggleCameraFacing}
+              >
+                <FlipCameraAndroid
+                  className="w-8 h-8 text-white"
+                  color="#fff"
                 />
-              )}
-            </TouchableOpacity>
-          </View>
+              </TouchableOpacity>
+            </View>
 
-          <View className="absolute bottom-9 w-full flex-row px-8 justify-left items-left">
-            <TouchableOpacity onPress={() => router.replace('/home')}>
-              <Entypo name="folder-images" size={36} color="white" />
-            </TouchableOpacity>
+            {/* Bottom Bar */}
+            <View className="absolute bottom-8 w-full p-8 flex-row justify-between items-center">
+              <TouchableOpacity
+                className="p-4 bg-black/50 rounded-full"
+                onPress={() => router.push("/home")}
+              >
+                <PermMedia className="w-8 h-8 text-white" color="#fff" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="w-16 h-16 bg-white rounded-full border-4 border-gray-300 justify-center items-center"
+                onPress={takePhoto}
+              >
+                {takingPicture && (
+                  <ActivityIndicator
+                    className="z-10"
+                    size="large"
+                    color="#d1d5db"
+                  />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity></TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </CameraView>
-    </View>
+        </CameraView>
+      </View>
+    </>
   );
 }
