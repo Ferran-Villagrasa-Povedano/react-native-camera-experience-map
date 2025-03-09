@@ -8,7 +8,13 @@ import { Camera, CameraView } from "expo-camera";
 import * as Location from "expo-location";
 import * as MediaLibrary from "expo-media-library";
 import { useLocalSearchParams } from "expo-router";
-import { addDoc, collection, doc, updateDoc } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  updateDoc,
+} from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 
@@ -123,7 +129,6 @@ export default function CameraScreen() {
       console.log(`Original photo size: ${photo.base64.length}`);
       console.log(`Compressed photo size: ${compressedPhoto.base64.length}`);
 
-      console.log("User id:", auth.currentUser.uid);
       const userMediaRef = collection(db, `albums/${albumId}/media`);
 
       const photoData = {
@@ -137,12 +142,18 @@ export default function CameraScreen() {
         timestamp,
       };
 
-      await addDoc(userMediaRef, photoData);
+      const mediaDocRef = await addDoc(userMediaRef, photoData);
 
       const albumRef = doc(db, `albums/${albumId}`);
       await updateDoc(albumRef, { updatedAt: new Date().toISOString() });
 
-      console.log("Photo added to Firestore");
+      const mediaSnapshot = await getDocs(userMediaRef);
+      if (mediaSnapshot.size === 1) {
+        await updateDoc(albumRef, { coverRef: mediaDocRef });
+        console.log("Updated album cover");
+      }
+
+      console.log("Photo added to Firestore", mediaDocRef.path);
     } catch (error) {
       console.error("Error taking photo:", error);
     } finally {

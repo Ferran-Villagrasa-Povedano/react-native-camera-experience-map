@@ -6,12 +6,15 @@ import { Stack, useRouter } from "expo-router";
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
+  getDoc,
   getDocs,
   limit,
   orderBy,
   query,
   startAfter,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
@@ -32,10 +35,13 @@ export default function AlbumsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [lastVisible, setLastVisible] = useState(null);
-  const [creatingAlbum, setCreatingAlbum] = useState(false);
+  const [creatingAlbum, setCreatingOrUpdatingAlbum] = useState(false);
   const [newAlbumName, setNewAlbumName] = useState("");
   const [newAlbumEmails, setNewAlbumEmails] = useState([]);
   const [newAlbumError, setNewAlbumError] = useState(null);
+  const [editingAlbum, setEditingAlbum] = useState(false);
+  const [albumToEdit, setAlbumToEdit] = useState(null);
+
   const ALBUMS_PER_PAGE = 10;
 
   const router = useRouter();
@@ -125,18 +131,21 @@ export default function AlbumsScreen() {
 
   const handleCancelAlbumCreation = () => {
     setModalVisible(false);
-    setCreatingAlbum(false);
+    setCreatingOrUpdatingAlbum(false);
+    setEditingAlbum(false);
+    setAlbumToEdit(null);
     setNewAlbumName("");
     setNewAlbumEmails([]);
     setNewAlbumError(null);
   };
 
-  const handleCreateAlbum = async () => {
-    setCreatingAlbum(true);
+  const handleCreateOrUpdateAlbum = async () => {
+    setCreatingOrUpdatingAlbum(true);
+
     setNewAlbumName(newAlbumName.trim());
     if (!newAlbumName.trim()) {
       setNewAlbumError("Album name is required.");
-      setCreatingAlbum(false);
+      setCreatingOrUpdatingAlbum(false);
       return;
     }
 
@@ -148,31 +157,58 @@ export default function AlbumsScreen() {
     } catch (error) {
       setNewAlbumError("One or more emails are invalid.");
       console.error("Error resolving emails to user references:", error);
-      setCreatingAlbum(false);
+      setCreatingOrUpdatingAlbum(false);
       return;
     }
 
     try {
       const authorRef = doc(db, "users", auth.currentUser.uid);
 
-      const newAlbum = {
+      const albumData = {
         authorId: authorRef,
         name: newAlbumName,
-        cover: null,
+        coverRef: null,
         sharedWith: userRefs,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      const albumDoc = await addDoc(collection(db, "albums"), newAlbum);
+      if (editingAlbum) {
+        const albumRef = doc(db, "albums", albumToEdit.id);
+        await updateDoc(albumRef, albumData);
+        console.log("Album updated successfully.");
+      } else {
+        const albumDoc = await addDoc(collection(db, "albums"), albumData);
+        console.log("Album created successfully.");
+        router.push(`/album/${albumDoc.id}`);
+      }
+
       handleCancelAlbumCreation();
       await refreshAlbums();
-      router.push(`/album/${albumDoc.id}`);
     } catch (error) {
-      console.error("Error adding album:", error);
+      console.error("Error saving album:", error);
     }
 
-    setCreatingAlbum(false);
+    setCreatingOrUpdatingAlbum(false);
+  };
+
+  const handleDeleteAlbum = async () => {
+    try {
+      const albumId = albumToEdit.id;
+
+      const albumRef = doc(db, "albums", albumId);
+      await deleteDoc(albumRef);
+      setAlbums((prevAlbums) =>
+        prevAlbums.filter((album) => album.id !== albumId)
+      );
+
+      await fetchAlbums(true);
+
+      console.log("Album deleted:", albumId);
+      handleCancelAlbumCreation();
+    } catch (error) {
+      console.error("Error al eliminar el álbum:", error);
+    }
   };
 
   const resolveEmailsToUserReferences = async (emails) => {
@@ -194,6 +230,18 @@ export default function AlbumsScreen() {
     }
 
     return userRefs;
+  };
+
+  const handleEditAlbum = (album) => {
+    setModalVisible(true);
+    setEditingAlbum(true);
+    setAlbumToEdit(album);
+    setNewAlbumName(album.name);
+    const emails = album.sharedWith.map(async (ref) => {
+      const doc = await getDoc(ref);
+      return doc.data().email;
+    });
+    setNewAlbumEmails(emails);
   };
 
   return (
@@ -218,7 +266,9 @@ export default function AlbumsScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={refreshAlbums} />
           }
-          renderItem={({ item }) => <AlbumCard album={item} />}
+          renderItem={({ item }) => (
+            <AlbumCard album={item} handleEditAlbum={handleEditAlbum} />
+          )}
           onEndReached={() => {
             if (!loadingMore && lastVisible !== null) {
               fetchAlbums();
@@ -249,7 +299,9 @@ export default function AlbumsScreen() {
         >
           <View className="flex-1 justify-center items-center p-4">
             <View className="w-full p-4 bg-white rounded-xl">
-              <Text className="text-xl font-bold mb-4">New Album</Text>
+              <Text className="text-xl font-bold mb-4">
+                {editingAlbum ? "Edit Album" : "New Album"}
+              </Text>
 
               <TextInput
                 value={newAlbumName}
@@ -261,7 +313,7 @@ export default function AlbumsScreen() {
               <EmailInput
                 emails={newAlbumEmails}
                 onEmailsChange={setNewAlbumEmails}
-                placeholder="Enter album name"
+                placeholder="Enter album emails"
               />
 
               {newAlbumError && (
@@ -279,9 +331,22 @@ export default function AlbumsScreen() {
                     Cancel
                   </Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  className="bg-red-500 py-3 rounded-md mt-4 flex-1"
+                  onPress={handleDeleteAlbum}
+                  disabled={creatingAlbum}
+                >
+                  <View className="flex-row items-center justify-center">
+                    <Text className="text-center text-white text-lg">
+                      Delete
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
                 <TouchableOpacity
                   className="bg-blue-500 py-3 rounded-md mt-4 flex-1"
-                  onPress={handleCreateAlbum}
+                  onPress={handleCreateOrUpdateAlbum}
                   disabled={creatingAlbum}
                 >
                   <View className="flex-row items-center justify-center">
@@ -293,7 +358,11 @@ export default function AlbumsScreen() {
                       />
                     )}
                     <Text className="text-center text-white text-lg">
-                      {creatingAlbum ? "Creating..." : "Create Album"}
+                      {creatingAlbum
+                        ? "Saving..."
+                        : editingAlbum
+                        ? "Save Changes"
+                        : "Create Album"}
                     </Text>
                   </View>
                 </TouchableOpacity>
