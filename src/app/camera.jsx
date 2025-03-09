@@ -17,6 +17,8 @@ import {
 } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
+import Entypo from '@expo/vector-icons/Entypo';
+import { useRouter } from "expo-router";
 
 export default function CameraScreen() {
   const [permissionsGranted, setPermissionsGranted] = useState(false);
@@ -28,6 +30,8 @@ export default function CameraScreen() {
   const [flash, setFlash] = useState("off");
 
   const { albumId } = useLocalSearchParams();
+
+  const router = useRouter();
 
   useEffect(() => {
     checkPermissions();
@@ -206,6 +210,12 @@ export default function CameraScreen() {
                   color="#d1d5db"
                 />
               )}
+            </TouchableOpacity>
+          </View>
+
+          <View className="absolute bottom-9 w-full flex-row px-8 justify-left items-left">
+            <TouchableOpacity onPress={() => router.replace('/home')}>
+              <Entypo name="folder-images" size={36} color="white" />
             </TouchableOpacity>
           </View>
         </View>
