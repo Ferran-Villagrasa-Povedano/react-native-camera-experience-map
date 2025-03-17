@@ -29,6 +29,7 @@ import {
 } from "react-native";
 
 import MoreVert from "@assets/MoreVert";
+import Map from "@assets/Map";
 import compressImage from "@utils/compressImage";
 import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
@@ -190,6 +191,10 @@ export default function AlbumScreen() {
     router.push({ pathname: "/camera", params: { albumId } });
   };
 
+  const handleOpenMap = () => {
+    router.push({ pathname: "/map", params: { albumId } });
+  };
+
   const handleDeleteMedia = async (mediaId) => {
     try {
       const mediaRef = doc(db, "albums", albumId, "media", mediaId);
@@ -296,6 +301,18 @@ export default function AlbumScreen() {
       <View className="flex-1 p-4">
         <View className="flex-row justify-between p-4">
           <TouchableOpacity
+            onPress={handleOpenMap}
+            className="bg-gray-500 py-3 rounded-xl mb-4 flex-1 ml-2"
+          >
+            <View className="flex-row items-center justify-center">
+              <Map className="w-8 h-8 text-white" color="#fff" />
+              <Text className="text-center text-white text-lg ml-2">
+                Open Map
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             onPress={handleImportFromGallery}
             className="bg-gray-500 py-3 rounded-xl mb-4 flex-1 mr-2"
           >
@@ -313,6 +330,7 @@ export default function AlbumScreen() {
               </Text>
             </View>
           </TouchableOpacity>
+          
           <TouchableOpacity
             onPress={handleTakePhoto}
             className="bg-gray-500 py-3 rounded-xl mb-4 flex-1 ml-2"
